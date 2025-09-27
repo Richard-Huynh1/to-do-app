@@ -20,6 +20,7 @@ app.use(
     saveUninitialized: true,
   })
 );
+app.use(express.json());
 app.use(express.urlencoded({ extend: true }));
 app.use(express.static("public"));  
 
@@ -36,6 +37,7 @@ const db = new pg.Client({
   port: process.env.PG_PORT,
 });
 db.connect();
+let userId;
 
 app.get("/", (req, res) => {
   res.render("index.ejs");
@@ -47,6 +49,64 @@ app.get("/register", (req, res) => {
 
 app.get("/login", (req, res) => {
   res.render("login.ejs", { message: req.flash("error") });
+});
+
+function capitalizeFirstLettter(str) {
+  if (typeof str !== "string" || str.length == 0) {
+    return str;
+  }
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+app.get("/logout", (req, res) => {
+  req.logout((err) => {
+    if (err) console.log(err);
+    res.redirect("/");
+  })
+});
+
+app.get("/tasks", async (req, res) => {
+  if (req.isAuthenticated()) {
+    const timeframe = req.query.sort;
+    const filter = req.query.filter;
+    let tasks;
+    let title;
+    let orderBy = " ORDER BY "
+    switch (filter) {
+      case "newest":
+        orderBy += "id DESC";
+        break;
+      case "oldest":
+        orderBy += "id ASC";
+        break;
+      case "hardest":
+        orderBy += "difficulty DESC";
+        break;
+      case "easiest":
+        orderBy += "difficulty ASC";
+        break;
+      default:
+        orderBy = "";
+    }
+    try {
+      if (timeframe) {
+        const result = await db.query(
+          "SELECT * FROM tasks WHERE user_id = $1 AND timeframe = $2" + orderBy, [userId, timeframe]
+        );
+        tasks = result.rows;
+        title = capitalizeFirstLettter(timeframe) + " tasks";
+      } else {
+        const result = await db.query("SELECT * FROM tasks WHERE user_id = $1" + orderBy, [userId]);
+        tasks = result.rows;
+        title = "All tasks"
+      }
+      res.render("tasks.ejs", { title: title, tasks: tasks });
+    } catch (err) {
+      console.log(err);
+    }
+  } else {
+    res.redirect("/login");
+  }
 });
 
 app.get(
@@ -105,6 +165,7 @@ app.post("/register", async (req, res) => {
           );
           const user = result.rows[0];
           req.login(user, (err) => {
+            userId = user.id;
             console.log("success");
             res.redirect("/tasks");
           });
@@ -114,6 +175,53 @@ app.post("/register", async (req, res) => {
   } catch (err) {
     console.log(err);
     res.redirect("/register");
+  }
+});
+
+app.post("/edit", async (req, res) => {
+  try {
+    const difficulty = parseInt(req.body.rating);
+    if (!Number.isNaN(difficulty)) {
+      await db.query(
+        "UPDATE tasks SET description = $1, difficulty = $2 WHERE id = $3",
+        [req.body.description, difficulty, req.body.id]
+      );
+      res.json({ message: "Task updated sucessfully" });
+    } else {
+      res.json({ message: "Difficulty not a number. Task not edited" })
+    }
+  } catch (err) {
+    console.log(err);
+    res.sendStatus(500);
+  }
+});
+
+app.post("/tasks", async (req, res) => {
+  const timeframe = req.query.sort;
+  try {
+    const difficulty = parseInt(req.body.rating);
+    if (!Number.isNaN(difficulty)) {
+      await db.query(
+        "INSERT INTO tasks (description, difficulty, user_id, timeframe) VALUES ($1, $2, $3, $4)",
+        [req.body.description, difficulty, userId, timeframe]
+      );
+      res.status(201).json({ message: "Task added successfully" });
+    } else {
+      res.json({ message: "Difficulty of task not a number. Not added" });
+    }
+  } catch (err) {
+    console.log(err);
+    res.sendStatus(500);
+  }
+});
+
+app.delete("/tasks", async (req, res) => {
+  try {
+    await db.query("DELETE FROM tasks WHERE id = $1", [req.body.id]);
+    res.status(200).json({ message: "Task sucessfully deleted." });
+  } catch (err) {
+    console.log(err);
+    res.sendStatus(500);
   }
 });
 
@@ -130,6 +238,7 @@ passport.use(
             return cb(err);
           } else {
             if (valid) {
+              userId = user.id;
               return cb(null, user);
             } else {
               return cb(null, false, { message: "Incorrect password" });
@@ -164,9 +273,12 @@ passport.use(
             "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING *",
             [profile.email, "google"]
           );
+          userId = newUser.id;
           return cb(null, newUser.rows[0]);
         } else {
-          return cb(null, result.rows[0]);
+          const user = result.rows[0];
+          userId = user.id;
+          return cb(null, user);
         }
       } catch (err) {
         return cb(err);
@@ -192,7 +304,9 @@ passport.use(
         if (result.rows.length === 0) {
           return cb(null, false, { message: "Google account not registered" });
         } else {
-          return cb(null, result.rows[0]);
+          const user = result.rows[0];
+          userId = user.id;
+          return cb(null, user);
         }
       } catch (err) {
         return cb(err);

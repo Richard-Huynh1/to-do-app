@@ -1,0 +1,43 @@
+<%- include("partials/header.ejs") %>
+<div id="to-do-list">
+  <h1 id="task-label"><%= title %></h1>
+  <span class="fr mt-2">
+    <a href="/tasks" class="btn btn-primary">All tasks</a>
+    <a href="/tasks?sort=today" class="btn btn-primary">Today</a>
+    <a href="/tasks?sort=week" class="btn btn-primary">This week</a>
+    <a href="/tasks?sort=month" class="btn btn-primary">This month</a>
+    <a href="/tasks?sort=year" class="btn btn-primary">This year</a>
+  </span>
+  <span class="fr mb-2" style="display:block">
+    <button onclick="filter('newest')" class="btn btn-secondary">Newest first</button>
+    <button onclick="filter('oldest')" class="btn btn-secondary">Oldest first</button>
+    <button onclick="filter('hardest')" class="btn btn-secondary">Hardest</button>
+    <button onclick="filter('easiest')" class="btn btn-secondary">Easiest</button>
+  </span>
+  <% tasks.forEach((task) => { %>
+    <div class="task my-3">
+      <span id="<%= task.id %>" class="vertical-center">
+        <p class="description"><%= task.description %></p>
+        <input class="edit-task" value="<%= task.description %>" size="60" hidden>
+        <button onclick="submitEdits(<%= task.id %>)" class="btn btn-outline-success ms-2 fr submit-edits" hidden><img src="images/checkmark.svg" width="20"></button>
+        <button onclick="deleteTask(<%= task.id %>)" class="btn btn-outline-danger ms-2 fr edit"><img src="images/trashcan.svg" width="20"></button>
+        <button onclick="handler(<%= task.id %>)" class="btn btn-outline-primary ms-2 fr edit"><img src="images/pencil.svg" width="20"></button>
+        <p class="rating"><%= task.difficulty %>/5</p>
+        <input class="rating-ending" value="/5" hidden readonly>
+        <input class="edit-rating" maxlength="1" value="<%= task.difficulty %>" hidden>
+      </span>
+    </div>
+  <% }) %>
+  <div id="add" class="task my-3" hidden>
+      <span class="vertical-center">
+        <input class="edit-task" placeholder="Your task here" size="60">
+        <button onclick="addTask()" class="btn btn-outline-success ms-2 fr"><img src="images/checkmark.svg" width="20"></button>
+        <input class="rating-ending" value="/5" readonly>
+        <input class="edit-rating" maxlength="1" placeholder="0">
+      </span>
+    </div>
+  <button onclick="toggleAddTask()" class="btn btn-success"><img src="images/plus.svg" width="20"></button>
+</div>
+<a href="/logout" class="btn btn-danger" style="position:absolute;bottom:10px;right:10px">Log Out</a>
+<script src="src/tasks.js"></script>
+<%- include("partials/footer.ejs") %>
