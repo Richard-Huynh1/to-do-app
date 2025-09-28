@@ -31,3 +31,8 @@ PG_PORT="your port here"
 GOOGLE_CLIENT_ID="your Google client id here"
 GOOGLE_CLIENT_SECRET="your Google client secret here"
 ```
+## How to Run the Server
+```
+npm i
+node index.js
+```
