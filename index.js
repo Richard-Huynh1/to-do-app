@@ -44,7 +44,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
-  res.render("register.ejs"); 
+  res.render("register.ejs", { message: "" }); 
 });
 
 app.get("/login", (req, res) => {
@@ -149,7 +149,10 @@ app.post("/login", passport.authenticate("local", {
 app.post("/register", async (req, res) => {
   const email = req.body.username;
   const password = req.body.password;
-
+  if (email === "" || password === "") {
+    res.render("register.ejs", { message: "Missing credentials" });
+    return;
+  }
   try {
     const checkResult = await db.query("SELECT * FROM users WHERE email = $1", [email]);
     if (checkResult.rows.length > 0) {
